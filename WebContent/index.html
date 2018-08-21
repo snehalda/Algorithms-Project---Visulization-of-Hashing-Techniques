@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="js/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/external/jquery-2.1.3.min.js"></script>
+    <script src="js/external/jquery-ui.js"></script>
+    <script src="js/external/d3.v3.js"></script>
+<title>Hashing visualization</title>
+</head>
+<body>
+
+
+Linear Probing<input type="radio" name="strategy" id="lp" value="lp" onchange="init()"/>
+Quadratic Probing<input type="radio" name="strategy" id="qp" value="qp" onchange="init()"/>
+Double Hashing<input type="radio" name="strategy" id="dh" value="dh" onchange="init()"/>
+Separate Chaining<input type="radio" name="strategy" id="sc" value="sc" onchange="init()"/>
+
+          <select name="buckets" id="buckets">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+          <option value="11">11</option>
+          <option value="12">12</option>
+          <option value="13">13</option>
+          <option value="14">14</option>
+          <option value="15">15</option>
+          </select>
+          <button onclick="start()">GO</button>
+          
+          <input type="number" name="searchVal" id="searchVal" min="0"/>
+          <button onclick="search()">Search</button>
+          <input type="number" name="inVal" id="inVal" min="0"/>
+          <button onclick="insert()">Insert</button>
+          <div class="row placeholders side" id="canvas" data-toggle="tooltip" title="Hashtable">
+          </div>
+<script src="js/hash_library/bucket.js"></script>
+<script src="js/hash_library/properties.js"></script>
+<script src="js/hash_library/node.js"></script>
+<script>
+var mainSvg = d3.select("#canvas").append("svg").attr("width", 1500).attr(
+		"height", 400);
+var bucketSvg;
+var edgeSvg;
+var bucketExtraTextSvg;
+var bucketSvgTextSvg;
+var buckets=0;
+var bucketList =[];
+var strategy;
+var hashTable = {
+		"lp":{
+			"nodes":null,
+			"values":{},
+			"buckets":[],
+			"size":null
+		},
+		"qp":{
+			"nodes":null,
+			"values":{},
+			"buckets":[],
+			"size":null
+		},
+		"dh":{
+			"nodes":null,
+			"values":{},
+			"buckets":[],
+			"size":null
+		},
+		"sc":{
+			"nodes":null,
+			"values":{},
+			"buckets":[],
+			"size":null
+		},
+		
+}
+function init(){
+	strategy = "lp";
+	if (document.getElementById('lp').checked) {
+		strategy = 'lp';
+	}
+	if (document.getElementById('qp').checked) {
+		strategy = 'qp';
+	}
+	if (document.getElementById('dh').checked) {
+		strategy = 'dh';
+	}
+	if (document.getElementById('sc').checked) {
+		strategy = 'sc';
+	}
+	bucketList = hashTable[strategy]["buckets"];
+	initCanvas();
+	if(bucketList!=null && !(bucketList.length==undefined) && bucketList.length>0){
+		var size = hashTable[strategy]["size"]
+		var i =0;
+		var bucket;
+		while(i<size){
+			bucket = bucketList[i];
+			//bucket.init();
+			bucket.showVertex();
+			bucket.draw();
+			i++;
+		}
+	}
+}
+function initCanvas(){
+	d3.select('svg').selectAll('*').remove();
+	if (mainSvg.select("#bucket").empty()) {
+	    bucketSvg = mainSvg.append("g")
+	            .attr("id", "bucket");
+	}
+	if (mainSvg.select("#edge").empty()) {
+	    edgeSvg = mainSvg.append("g")
+	            .attr("id", "edge");
+	}
+	if (mainSvg.select("#bucketText").empty()) {
+	    bucketTextSvg = mainSvg.append("g")
+	            .attr("id", "bucketText");
+	}
+	if (mainSvg.select("#bucketExtraText").empty()) {
+	    bucketExtraTextSvg = mainSvg.append("g")
+	            .attr("id", "bucketExtraText");
+	}
+}
+function start(){
+	buckets = document.getElementById("buckets").value;
+	initCanvas();
+	var i=0;
+	var values = [];
+	var time = 200;
+	while(i<buckets)
+	{
+		var cx= (2000/buckets)*(i+1)/2;
+		var cy= 100;
+		var bucket = new BucketWidget(cx, cy, "circle", i, i);
+		bucket.showVertex();
+		bucket.draw(time);
+		bucketList[i]=bucket;
+		values[i]= [];
+		//values[i].push([]);
+		time = time +200;
+		i++;
+	}
+	hashTable[strategy]["buckets"] = bucketList;	
+	hashTable[strategy]["values"] = values;
+	hashTable[strategy]["size"]=buckets;
+}
+function startAnimation(){
+	var bucket;
+	var i=0;
+	for(bucket in bucketList)
+	{
+		if(i%2==0)
+			bucketList[bucket].addNodes(3);
+		i++;
+		
+	}
+	
+}
+function search(){
+	var searchVal = document.getElementById("searchVal").value;
+	var hashVal = searchVal%buckets;
+	bucketList = hashTable[strategy]["buckets"];
+	buckets = hashTable[strategy]["size"];
+	if(strategy == "lp"){
+		lpSearch(searchVal,buckets,bucketList);
+	}
+	else if(strategy == "qp"){
+		qpSearch(searchVal,buckets,bucketList);
+	}
+	else if(strategy == "dh"){
+		dhSearch(searchVal,buckets,bucketList);
+	}
+	else if(strategy == "sc"){
+		scSearch(searchVal,buckets,bucketList);
+	}
+}
+function insert(){
+	var inVal = document.getElementById("inVal").value;
+	bucketList = hashTable[strategy]["buckets"];
+	buckets = hashTable[strategy]["size"];
+	if(strategy == "lp"){
+		lpInsert(inVal,buckets,bucketList);
+	}
+	else if(strategy == "qp"){
+		qpInsert(inVal,buckets,bucketList);
+	}
+	else if(strategy == "dh"){
+		dhInsert(inVal,buckets,bucketList);
+	}
+	else if(strategy == "sc"){
+		scInsert(inVal,buckets,bucketList);
+	}
+	
+}
+//--------------------Linear Probing---------------------------- 
+//Insert
+function lpInsert(inVal,buckets,bucketList){
+	
+	init();
+	var step = 0; 
+	var i = base = inVal%buckets;
+	var time = 200;
+	
+	var hashVal = inVal%buckets;
+	if(hashTable["lp"]["values"][hashVal] != null && (hashTable["lp"]["values"][hashVal]).indexOf(inVal) > -1)
+	{
+	alert("key already present!!");
+	}
+	while(hashTable["lp"]["values"][i] != null && hashTable["lp"]["values"][i].length!=0)
+	{
+		bucketList[i].traverseVertex();
+		bucketList[i].draw(time);
+		step++; 
+		i = (base+step*1)%buckets;
+		time = time + 200;
+		bucketList[i].showVertex();
+		bucketList[i].draw(time);
+		time = time + 200;
+	}
+	bucketList[i].changeVertex(inVal);
+	bucketList[i].draw(time);
+	hashTable["lp"]["values"][i].push(inVal);
+	hashTable["lp"]["buckets"]=bucketList;
+	//hashTable["lp"]["nodes"]=hashTable["lp"]["nodes"]++;
+}
+//Search
+function lpSearch(searchVal,buckets,bucketList){
+	init();
+	var step = 0; 
+	var i = base = searchVal%buckets;
+	var time = 200;
+
+	while (true){
+
+	  if (bucketList[i].getValue() == "") 
+		  return alert("Key is not present in Hashtable!");
+
+	  else if (bucketList[i].getValue() == searchVal) {
+		  bucketList[i].foundVertex();
+			bucketList[i].draw(time);
+			break;
+	  }
+	  else {
+		  step++; i = (base+step*1)%bucketList.length
+		  bucketList[i].traverseVertex();
+		  bucketList[i].draw(time);
+			time = time + 400;
+			bucketList[i].showVertex();
+			bucketList[i].draw(time);
+			time = time + 400;
+	  }
+	}
+}
+//--------------------Quadratic Probing----------------------------
+//Insert
+function qpInsert(inVal,buckets,bucketList){
+	init();
+	var step = 0; 
+	var i = base = inVal%buckets;
+	var time = 200;
+	
+	var hashVal = inVal%buckets;
+	if(hashTable["qp"]["values"][hashVal] != null && (hashTable["qp"]["values"][hashVal]).indexOf(inVal) > -1)
+	{
+	alert("key already present!!");
+	}
+	while(hashTable["qp"]["values"][i] != null && hashTable["qp"]["values"][i].length!=0)
+	{
+		bucketList[i].traverseVertex();
+		bucketList[i].draw(time);
+		step++; 
+		i = (base+step*step)%buckets;
+		time = time + 400;
+		bucketList[i].showVertex();
+		bucketList[i].draw(time);
+		time = time + 400;
+	}
+	bucketList[i].changeVertex(inVal);
+	bucketList[i].draw(time);
+	hashTable["qp"]["values"][i].push(inVal);
+	hashTable["qp"]["buckets"]=bucketList;
+	//hashTable["lp"]["nodes"]=hashTable["lp"]["nodes"]++;
+}
+//Search
+function qpSearch(searchVal,buckets,bucketList){
+	init();
+	var step = 0; 
+	var i = base = searchVal%buckets;
+	var time = 200;
+
+	while (true){
+
+	  if (bucketList[i].getValue() == "") 
+		  return alert("Key is not present in Hashtable!");
+
+	  else if (bucketList[i].getValue() == searchVal) {
+		  bucketList[i].foundVertex();
+			bucketList[i].draw(time);
+			break;
+	  }
+	  else {
+		  step++; i = (base+step*step)%bucketList.length
+		  bucketList[i].traverseVertex();
+		  bucketList[i].draw(time);
+			time = time + 400;
+			bucketList[i].showVertex();
+			bucketList[i].draw(time);
+			time = time + 400;
+	  }
+	}
+}
+//--------------------Double Hashing-------------------------------
+//Insert
+function dhInsert(inVal,buckets,bucketList){
+	init();
+	var hashVal = inVal%buckets;
+	var step = 0; 
+	var i = base = inVal%buckets;
+	var time = 200;
+	var primeNumber  = 7;
+    var sec =  primeNumber - inVal%primeNumber;
+
+	if(hashTable["dh"]["values"][hashVal] != null && (hashTable["dh"]["values"][hashVal]).indexOf(inVal) > -1)
+	{
+	alert("key already present!!");
+	}
+	while(hashTable["dh"]["values"][i] != null && hashTable["dh"]["values"][i].length!=0)
+	{
+		bucketList[i].traverseVertex();
+		bucketList[i].draw(time);
+		step++; 
+		i = (base+step*sec)%buckets;
+		time = time + 400;
+		bucketList[i].showVertex();
+		bucketList[i].draw(time);
+		time = time + 400;
+	}
+	bucketList[i].changeVertex(inVal);
+	bucketList[i].draw(time);
+	hashTable["dh"]["values"][i].push(inVal);
+	hashTable["dh"]["buckets"]=bucketList;
+	}
+//Search
+function dhSearch(searchVal,buckets,bucketList){
+	init();
+	var step = 0; 
+	var i = base = searchVal%buckets;
+	var time = 200;
+    var primeNumber  = 7;
+    var sec =  primeNumber - searchVal%primeNumber;
+
+	while (true){
+
+	  if (bucketList[i].getValue() == "") 
+		  return alert("Key is not present in Hashtable!");
+
+	  else if (bucketList[i].getValue() == searchVal) {
+		  bucketList[i].foundVertex();
+			bucketList[i].draw(time);
+			break;
+	  }
+	  else {
+		  step++; i = (base+step*sec)%bucketList.length
+		  bucketList[i].traverseVertex();
+		  bucketList[i].draw(time);
+			time = time + 400;
+			bucketList[i].showVertex();
+			bucketList[i].draw(time);
+			time = time + 400;
+	  }
+	}
+}
+
+function getPrimeBefore(number){
+var  i = number-1;
+ while(i>=2){
+ 	if(isPrime(i))
+ 		return i;
+ 	i--;
+ }
+
+}
+function isPrime(number) {
+    var start = 2;
+    while (start <= Math.sqrt(number)) {
+        if (number % start++ < 1) 
+        	return false;
+    }
+    return number > 1;
+}
+
+//--------------------Separate Chaining----------------------------
+//Insert
+function scInsert(inVal,buckets,bucketList){
+	init();
+	var hashVal = inVal%buckets;
+	if(hashTable["sc"]["values"][hashVal] != null && (hashTable["sc"]["values"][hashVal]).indexOf(inVal) > -1)
+		{
+		alert("key already present!!");
+		}
+	else{
+		bucketList[hashVal].addNodes(inVal);
+		hashTable["sc"]["buckets"]=bucketList;
+		hashTable["sc"]["values"][hashVal].push(inVal);
+	}
+}
+//Search
+function scSearch(searchVal,buckets,bucketList){
+	init();
+	var hashVal = searchVal%buckets;
+	var bucket;
+	var found = false;
+	var time = 200;
+	var nodes =  bucketList[hashVal].getNodes();
+	for(node in nodes){
+		nodes[node].traverseNode();
+		var nVal = nodes[node].getValue();
+		if(nVal==searchVal){
+			nodes[node].foundNode();
+			nodes[node].draw(hashVal,time);
+			found = true;
+			break;
+		}
+		nodes[node].draw(hashVal,time);
+		time = time + 400;
+		nodes[node].showNode();
+		nodes[node].draw(hashVal,time);
+		time = time + 400;
+	}
+		
+	if(found==false){
+		alert("Key is not present in Hashtable!");
+	}
+}
+
+
+</script>
+</body>
+</html>
